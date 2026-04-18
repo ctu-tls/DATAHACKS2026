@@ -1,5 +1,5 @@
 """
-Backtest Engine — Main tick loop orchestrator.
+Backtest Engine - Main tick loop orchestrator.
 
 Coordinates data loading, market management, execution, and portfolio tracking
 to run a strategy over historical data.
@@ -87,7 +87,7 @@ class BacktestEngine:
         self.snapshot_interval = snapshot_interval
         self.tick_step = max(1, tick_step)
 
-        # Initialize components — deep-copy lifecycles so data can be reused
+        # Initialize components - deep-copy lifecycles so data can be reused
         self.portfolio = Portfolio(starting_cash=starting_cash)
         fresh_lifecycles = [
             MarketLifecycle(

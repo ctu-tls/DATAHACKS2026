@@ -1,5 +1,5 @@
 """
-Test Fixtures — Synthetic market data for backtester tests.
+Test Fixtures - Synthetic market data for backtester tests.
 
 Creates realistic but deterministic test data:
 - 2 markets (one 5m, one 15m) with known outcomes

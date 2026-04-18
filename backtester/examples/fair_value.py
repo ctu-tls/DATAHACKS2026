@@ -1,5 +1,5 @@
 """
-Fair Value — Black-Scholes model adapted from appendix/btc_fair_value_estimator.py.
+Fair Value - Black-Scholes model adapted from appendix/btc_fair_value_estimator.py.
 
 Computes P(YES) = N(d2) using realized volatility and trades when the market
 price diverges from the model price by more than a threshold.
@@ -112,7 +112,7 @@ class FairValue(BaseStrategy):
             delta = fair - market_mid
 
             if delta > self.threshold and market.yes_ask > 0:
-                # Market is cheap relative to fair value — buy YES.
+                # Market is cheap relative to fair value - buy YES.
                 if state.cash >= self.size * market.yes_ask:
                     orders.append(Order(
                         market_slug=slug,
@@ -123,7 +123,7 @@ class FairValue(BaseStrategy):
                     ))
 
             elif delta < -self.threshold and market.no_ask > 0:
-                # Market is rich relative to fair value — buy NO.
+                # Market is rich relative to fair value - buy NO.
                 if state.cash >= self.size * market.no_ask:
                     orders.append(Order(
                         market_slug=slug,

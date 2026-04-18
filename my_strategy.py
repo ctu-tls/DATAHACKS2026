@@ -1,5 +1,5 @@
 """
-Late-Window Drift — an intuitive baseline strategy.
+Late-Window Drift - an intuitive baseline strategy.
 
 Intuition
 ---------
@@ -36,7 +36,7 @@ We focus on DATA ENGINEERING:
     we don't trust `btc_now` and abstain.
   - Book sanity: skip markets with no ask quote or a nonsense ask.
   - Position limit and cash guards applied before every order.
-  - Single entry per (market, side) — no stacking into the same idea.
+  - Single entry per (market, side) - no stacking into the same idea.
 """
 
 from backtester.strategy import (
@@ -106,7 +106,7 @@ class LateWindowDrift(BaseStrategy):
             #    they become ACTIVE. That's our open.
             if slug not in self._btc_open:
                 self._btc_open[slug] = cl
-                # Don't trade on the very first tick — no drift yet.
+                # Don't trade on the very first tick - no drift yet.
                 continue
 
             btc_open = self._btc_open[slug]
@@ -116,7 +116,7 @@ class LateWindowDrift(BaseStrategy):
             if market.time_remaining_frac > self.LATE_WINDOW:
                 continue
 
-            # 5. Deadband — require a meaningful directional drift.
+            # 5. Deadband - require a meaningful directional drift.
             if abs(drift) < self.DEADBAND_USD:
                 continue
 
@@ -168,6 +168,6 @@ class LateWindowDrift(BaseStrategy):
         return orders
 
     def on_settlement(self, settlement: Settlement) -> None:
-        # Free memory for markets that have resolved — keeps state bounded
+        # Free memory for markets that have resolved - keeps state bounded
         # on long backtests.
         self._btc_open.pop(settlement.market_slug, None)

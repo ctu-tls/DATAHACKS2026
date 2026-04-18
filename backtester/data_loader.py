@@ -1,5 +1,5 @@
 """
-Data Loader — Reads SQLite/CSV/Parquet into a unified timeline.
+Data Loader - Reads SQLite/CSV/Parquet into a unified timeline.
 
 Reuses loading patterns from collectors/export_data.py but builds structures
 optimized for the backtest engine: a sorted timeline of ticks, a settlement
@@ -207,7 +207,7 @@ def load_binance_lob(binance_dir: Path) -> pd.DataFrame:
         import pyarrow as pa
         import pyarrow.parquet as pq
     except ImportError:
-        logger.warning("pyarrow not installed — skipping Binance LOB data")
+        logger.warning("pyarrow not installed - skipping Binance LOB data")
         return pd.DataFrame()
 
     tables = []
@@ -224,7 +224,7 @@ def load_binance_lob(binance_dir: Path) -> pd.DataFrame:
     df = combined.to_pandas()
     df["ts_sec"] = df["timestamp_us"] // 1_000_000
 
-    # Classify asset by price magnitude — the three assets (BTC, ETH, SOL)
+    # Classify asset by price magnitude - the three assets (BTC, ETH, SOL)
     # are orders of magnitude apart so this is unambiguous.
     if "bid_price_1" in df.columns:
         df["asset"] = df["bid_price_1"].apply(
@@ -561,7 +561,7 @@ def build_timeline(
             timeline=[], lifecycles=[], settlements={}, start_ts=0, end_ts=0
         )
 
-    # Filter to requested assets — eliminates SOL/ETH work when strategy is BTC-only
+    # Filter to requested assets - eliminates SOL/ETH work when strategy is BTC-only
     if assets:
         asset_set = {a.upper() for a in assets}
         prices_df = prices_df[prices_df["market_slug"].apply(
@@ -664,7 +664,7 @@ def build_timeline(
             prices_grouped[ts] = bucket
         bucket[slug] = rec
 
-    # Release the prices DataFrame — the grouped dict has everything we need.
+    # Release the prices DataFrame - the grouped dict has everything we need.
     # Without this, pandas holds ~1 GB of row data alive through the JSON-parse
     # step below, causing GC thrashing on OneDrive-synced directories.
     # We rely on refcount-based cleanup; no explicit gc.collect() (scanning
@@ -684,7 +684,7 @@ def build_timeline(
 
     # Build pre-parsed book snapshots indexed by (slug, ts) for O(1)
     # forward-fill. Use one groupby() pass rather than scanning the frame
-    # per slug — the per-slug approach is O(N*S) on 8k+ slugs.
+    # per slug - the per-slug approach is O(N*S) on 8k+ slugs.
     #
     # No pickle cache: 1.75M dataclass instances pickle to ~6 GB of Python
     # object overhead, so re-parsing on cold start is faster. The del/gc
@@ -745,8 +745,8 @@ def build_timeline(
         finally:
             gc.enable()
 
-        # Release the raw books DataFrame — parsed snapshots have all we need.
-        # NO explicit gc.collect() — scanning the ~9M book-level objects
+        # Release the raw books DataFrame - parsed snapshots have all we need.
+        # NO explicit gc.collect() - scanning the ~9M book-level objects
         # we just created would cost 2+ minutes and saves nothing material.
         del books_df, slim
 
@@ -823,7 +823,7 @@ def build_timeline(
                     last_books[slug] = snap
 
             if slug in last_books:
-                # Reuse the parsed StoredBook tuple — no per-tick allocation.
+                # Reuse the parsed StoredBook tuple - no per-tick allocation.
                 snap = last_books[slug]
                 tick.order_books[slug] = snap
                 tick.book_timestamps[slug] = snap.book_ts

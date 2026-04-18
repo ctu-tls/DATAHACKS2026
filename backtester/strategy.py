@@ -1,5 +1,5 @@
 """
-Strategy Interface — What participants implement.
+Strategy Interface - What participants implement.
 
 Contains all dataclasses (MarketState, Order, Fill, etc.) and the BaseStrategy ABC.
 Participants subclass BaseStrategy and implement on_tick().
@@ -117,7 +117,7 @@ class OrderBookSnapshot(NamedTuple):
         The CSV source writes bids descending and asks ascending already, so
         we trust the on-disk order and skip the sort. Verified against the
         hackathon bundles. If a caller hands us unsorted JSON, the caller
-        must sort first — this matches the live-feed producer contract.
+        must sort first - this matches the live-feed producer contract.
         """
         try:
             raw_bids = _loads(bids_json) if bids_json else []
