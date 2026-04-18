@@ -31,6 +31,30 @@ python run_backtest.py my_strategy.py --data data/validation/
 
 Both backtest commands print a `BACKTEST REPORT` block with P&L, Sharpe ratio, max drawdown, trade count, and the `Competition Score` (= total P&L).
 
+### Speeding up your dev loop
+
+The full training set is 178 hours of 1-second ticks. Backtests can take a few minutes on the whole thing. To iterate faster, slice what gets loaded:
+
+```bash
+# Only the last 4 hours of data
+python run_backtest.py my_strategy.py --hours 4
+
+# Only BTC markets (or --assets ETH, --assets BTC ETH, etc.)
+python run_backtest.py my_strategy.py --assets BTC
+
+# Only 5-minute markets
+python run_backtest.py my_strategy.py --intervals 5m
+
+# All three combined — fastest possible iteration
+python run_backtest.py my_strategy.py --hours 4 --assets BTC --intervals 5m
+```
+
+Final scoring on the held-out test set runs with **all intervals and all assets** — so remember to run an unfiltered validation pass before you submit:
+
+```bash
+python run_backtest.py my_strategy.py --data data/validation/
+```
+
 ---
 
 ## How the markets work

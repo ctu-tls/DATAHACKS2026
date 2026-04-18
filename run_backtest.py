@@ -34,6 +34,10 @@ def main():
                         help="Starting cash (default: $10,000)")
     parser.add_argument("--intervals", nargs="+", default=["5m", "15m", "hourly"],
                         help="Market intervals (default: 5m 15m hourly)")
+    parser.add_argument("--assets", nargs="+", default=None,
+                        choices=["BTC", "ETH", "SOL"],
+                        help="Only trade markets for these assets (default: all). "
+                             "Big speedup if your strategy targets one asset.")
     parser.add_argument("--output", "-o", default=None,
                         help="Output directory for results JSON")
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -61,7 +65,12 @@ def main():
     print(f"Strategy loaded: {type(strategy).__name__}")
 
     print(f"Loading data from: {data_dir}")
-    data = build_timeline(data_dir=data_dir, intervals=args.intervals, hours=args.hours)
+    data = build_timeline(
+        data_dir=data_dir,
+        intervals=args.intervals,
+        hours=args.hours,
+        assets=args.assets,
+    )
 
     if not data.timeline:
         print("Error: no data found. Check your --data path.")
