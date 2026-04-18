@@ -674,35 +674,44 @@ def build_timeline(
         slim = books_df[available].sort_values(["market_slug", "ts_sec"])
         parsed = 0
         progress_every = max(len(slim) // 5, 1)
-        for slug, grp in slim.groupby("market_slug", sort=False):
-            ts_list: list[int] = []
-            snap_dict: dict[int, dict] = {}
-            col_idx = {c: i for i, c in enumerate(grp.columns)}
-            ts_i = col_idx["ts_sec"]
-            ybi = col_idx.get("yes_bids_json")
-            yai = col_idx.get("yes_asks_json")
-            nbi = col_idx.get("no_bids_json")
-            nai = col_idx.get("no_asks_json")
-            for row in grp.itertuples(index=False, name=None):
-                bts = int(row[ts_i])
-                ts_list.append(bts)
-                snap_dict[bts] = {
-                    "yes_book": OrderBookSnapshot.from_json(
-                        str(row[ybi]) if ybi is not None else "[]",
-                        str(row[yai]) if yai is not None else "[]",
-                    ),
-                    "no_book": OrderBookSnapshot.from_json(
-                        str(row[nbi]) if nbi is not None else "[]",
-                        str(row[nai]) if nai is not None else "[]",
-                    ),
-                    "book_ts": bts,
-                }
-                parsed += 1
-                if parsed % progress_every == 0:
-                    logger.info(f"  parsed {parsed:,}/{len(slim):,} books")
-            books_by_slug[slug] = None  # don't keep pandas group alive
-            book_ts_index[slug] = ts_list
-            book_snapshots[slug] = snap_dict
+
+        # Disable GC during the parse. We create millions of small objects
+        # (OrderBookLevel tuples, OrderBookSnapshot dataclasses); with GC
+        # enabled, each collection pass scans the whole prices_grouped dict
+        # as well, which is a ~2-3x slowdown on large datasets.
+        gc.disable()
+        try:
+            for slug, grp in slim.groupby("market_slug", sort=False):
+                ts_list: list[int] = []
+                snap_dict: dict[int, dict] = {}
+                col_idx = {c: i for i, c in enumerate(grp.columns)}
+                ts_i = col_idx["ts_sec"]
+                ybi = col_idx.get("yes_bids_json")
+                yai = col_idx.get("yes_asks_json")
+                nbi = col_idx.get("no_bids_json")
+                nai = col_idx.get("no_asks_json")
+                for row in grp.itertuples(index=False, name=None):
+                    bts = int(row[ts_i])
+                    ts_list.append(bts)
+                    snap_dict[bts] = {
+                        "yes_book": OrderBookSnapshot.from_json(
+                            str(row[ybi]) if ybi is not None else "[]",
+                            str(row[yai]) if yai is not None else "[]",
+                        ),
+                        "no_book": OrderBookSnapshot.from_json(
+                            str(row[nbi]) if nbi is not None else "[]",
+                            str(row[nai]) if nai is not None else "[]",
+                        ),
+                        "book_ts": bts,
+                    }
+                    parsed += 1
+                    if parsed % progress_every == 0:
+                        logger.info(f"  parsed {parsed:,}/{len(slim):,} books")
+                books_by_slug[slug] = None  # don't keep pandas group alive
+                book_ts_index[slug] = ts_list
+                book_snapshots[slug] = snap_dict
+        finally:
+            gc.enable()
 
         # Release the raw books DataFrame — parsed snapshots have all we need.
         del books_df, slim

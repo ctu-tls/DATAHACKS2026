@@ -8,6 +8,13 @@ Participants subclass BaseStrategy and implement on_tick().
 from __future__ import annotations
 
 import json
+try:  # orjson is ~5x faster; fall back to stdlib if not installed
+    import orjson as _fast_json
+    def _loads(s: str):
+        return _fast_json.loads(s)
+except ImportError:
+    def _loads(s: str):
+        return json.loads(s)
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -87,9 +94,9 @@ class OrderBookSnapshot:
         must sort first — this matches the live-feed producer contract.
         """
         try:
-            raw_bids = json.loads(bids_json) if bids_json else []
-            raw_asks = json.loads(asks_json) if asks_json else []
-        except (json.JSONDecodeError, TypeError):
+            raw_bids = _loads(bids_json) if bids_json else []
+            raw_asks = _loads(asks_json) if asks_json else []
+        except (json.JSONDecodeError, ValueError, TypeError):
             return OrderBookSnapshot()
         bids = tuple(OrderBookLevel(float(p), float(s)) for p, s in raw_bids)
         asks = tuple(OrderBookLevel(float(p), float(s)) for p, s in raw_asks)
