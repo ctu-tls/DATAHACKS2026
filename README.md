@@ -161,6 +161,12 @@ class MyStrategy(BaseStrategy):
 | `btc_mid` | `float` | Binance BTCUSDT mid-price |
 | `btc_spread` | `float` | Binance BTCUSDT (ask - bid) |
 | `chainlink_btc` | `float` | Chainlink on-chain BTC oracle (used for settlement) |
+| `eth_mid` | `float` | Binance ETHUSDT mid-price |
+| `eth_spread` | `float` | Binance ETHUSDT (ask - bid) |
+| `chainlink_eth` | `float` | Chainlink on-chain ETH oracle |
+| `sol_mid` | `float` | Binance SOLUSDT mid-price |
+| `sol_spread` | `float` | Binance SOLUSDT (ask - bid) |
+| `chainlink_sol` | `float` | Chainlink on-chain SOL oracle |
 | `markets` | `dict[str, MarketView]` | All currently active markets |
 | `positions` | `dict[str, PositionView]` | Your current holdings |
 

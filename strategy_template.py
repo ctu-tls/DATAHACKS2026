@@ -133,11 +133,19 @@ class MyStrategy(BaseStrategy):
                 .no_shares      float   Number of NO tokens held.
                 .cost_basis     float   Total cost paid to acquire the position.
 
-        BTC Reference Prices
-        ---------------------
+        Reference Prices — per asset (BTC, ETH, SOL)
+        ---------------------------------------------
         state.btc_mid        float   Binance BTCUSDT mid-price (best bid + best ask) / 2.
         state.btc_spread     float   Binance BTCUSDT spread (best ask - best bid).
         state.chainlink_btc  float   Chainlink on-chain oracle BTC price (used for settlement).
+        state.eth_mid        float   Binance ETHUSDT mid-price.
+        state.eth_spread     float   Binance ETHUSDT spread.
+        state.chainlink_eth  float   Chainlink on-chain oracle ETH price.
+        state.sol_mid        float   Binance SOLUSDT mid-price.
+        state.sol_spread     float   Binance SOLUSDT spread.
+        state.chainlink_sol  float   Chainlink on-chain oracle SOL price.
+        Use the oracle that matches your market's asset — pairing an ETH
+        market with state.chainlink_btc will not work.
 
         Active Markets — ``state.markets: dict[str, MarketView]``
         ----------------------------------------------------------
