@@ -238,7 +238,7 @@ def load_chainlink_prices(
     start_us: int | None = None,
     end_us: int | None = None,
 ) -> pd.DataFrame:
-    """Load Chainlink BTC/USD prices from rtds_prices table."""
+    """Load Chainlink prices from rtds_prices table."""
     pd = _import_pandas()
     if not db_path.exists():
         return pd.DataFrame()
@@ -592,63 +592,39 @@ def build_timeline(
     global_start = int(prices_df["ts_sec"].min())
     global_end = int(prices_df["ts_sec"].max())
 
-    # Aggregate Binance to per-second, one dict per asset.
-    # Mid and spread are derived on the fly from bid_price_1/ask_price_1
-    # since the Parquet schema does not carry a mid_price column. The
-    # "asset" column is set upstream in load_binance_lob.
-    binance_by_sec: dict[str, dict[int, tuple[float, float]]] = {
-        "BTC": {}, "ETH": {}, "SOL": {},
-    }
+    # Pre-aggregate Binance to per-second (BTC only).
+    # The Parquet schema has bid_price_1/ask_price_1 (no `mid_price` column),
+    # so derive mid/spread on the fly.
+    binance_by_sec: dict[int, tuple[float, float]] = {}
     if not binance_df.empty and "bid_price_1" in binance_df.columns and "ask_price_1" in binance_df.columns:
-        has_asset_col = "asset" in binance_df.columns
-        for asset in ("BTC", "ETH", "SOL"):
-            asset_lob = binance_df[binance_df["asset"] == asset] if has_asset_col else (
-                binance_df if asset == "BTC" else binance_df.iloc[0:0]
+        btc_lob = binance_df[binance_df["asset"] == "BTC"] if "asset" in binance_df.columns else binance_df
+        if not btc_lob.empty:
+            btc_lob = btc_lob.assign(
+                _mid=(btc_lob["bid_price_1"] + btc_lob["ask_price_1"]) / 2,
+                _spread=(btc_lob["ask_price_1"] - btc_lob["bid_price_1"]),
             )
-            if asset_lob.empty:
-                continue
-            asset_lob = asset_lob.assign(
-                _mid=(asset_lob["bid_price_1"] + asset_lob["ask_price_1"]) / 2,
-                _spread=(asset_lob["ask_price_1"] - asset_lob["bid_price_1"]),
-            )
-            agg = asset_lob.groupby("ts_sec").agg(
-                mid=("_mid", "last"),
-                spread=("_spread", "last"),
+            binance_agg = btc_lob.groupby("ts_sec").agg(
+                btc_mid=("_mid", "last"),
+                btc_spread=("_spread", "last"),
             )
             binance_by_sec[asset] = dict(
                 zip(
-                    agg.index.astype(int).tolist(),
+                    binance_agg.index.astype(int).tolist(),
                     zip(
-                        agg["mid"].astype(float).tolist(),
-                        agg["spread"].astype(float).tolist(),
+                        binance_agg["btc_mid"].astype(float).tolist(),
+                        binance_agg["btc_spread"].astype(float).tolist(),
                     ),
                 )
             )
 
-    # Aggregate Chainlink to per-second, one dict per asset.
-    # Filter by symbol before groupby so `.last()` only sees rows for a
-    # single asset within each bucket.
-    chainlink_by_sec: dict[str, dict[int, float]] = {"BTC": {}, "ETH": {}, "SOL": {}}
-    if not chainlink_df.empty and "symbol" in chainlink_df.columns:
-        _symbol_to_asset = {"BTC/USD": "BTC", "ETH/USD": "ETH", "SOL/USD": "SOL"}
-        for sym, asset in _symbol_to_asset.items():
-            sub = chainlink_df[chainlink_df["symbol"] == sym]
-            if sub.empty:
-                continue
-            agg = sub.groupby("ts_sec").agg(price=("price", "last"))
-            chainlink_by_sec[asset] = dict(
-                zip(
-                    agg.index.astype(int).tolist(),
-                    agg["price"].astype(float).tolist(),
-                )
-            )
-    elif not chainlink_df.empty:
-        # Fall back to single-symbol rows (rtds_prices with no symbol column).
-        agg = chainlink_df.groupby("ts_sec").agg(price=("price", "last"))
-        chainlink_by_sec["BTC"] = dict(
+    # Pre-aggregate Chainlink to per-second
+    chainlink_by_sec: dict[int, float] = {}
+    if not chainlink_df.empty:
+        cl_agg = chainlink_df.groupby("ts_sec").agg(chainlink_btc=("price", "last"))
+        chainlink_by_sec = dict(
             zip(
-                agg.index.astype(int).tolist(),
-                agg["price"].astype(float).tolist(),
+                cl_agg.index.astype(int).tolist(),
+                cl_agg["chainlink_btc"].astype(float).tolist(),
             )
         )
 
@@ -784,13 +760,11 @@ def build_timeline(
     end_idx = 0
     active_slugs: set[str] = set()
 
-    # Track the last observed value for each asset so we can forward-fill.
-    last_binance: dict[str, tuple[float, float]] = {
-        "BTC": (0.0, 0.0), "ETH": (0.0, 0.0), "SOL": (0.0, 0.0),
-    }
-    last_chainlink_by_asset: dict[str, float] = {"BTC": 0.0, "ETH": 0.0, "SOL": 0.0}
-    # Map of slug -> {yes_book, no_book, book_ts}.
-    last_books: dict[str, dict] = {}
+    # Track last known values for forward-filling
+    last_btc_mid = 0.0
+    last_btc_spread = 0.0
+    last_chainlink = 0.0
+    last_books: dict[str, dict] = {}  # slug -> {yes_book, no_book, book_ts}
 
     progress_step = max(total_secs // 10, 1)
 
@@ -845,23 +819,16 @@ def build_timeline(
                     tick.order_books[slug] = snap
                     tick.book_timestamps[slug] = ts
 
-        # Forward-fill Binance mid and spread for each asset.
-        for asset in ("BTC", "ETH", "SOL"):
-            asset_dict = binance_by_sec[asset]
-            if ts in asset_dict:
-                last_binance[asset] = asset_dict[ts]
-        tick.btc_mid, tick.btc_spread = last_binance["BTC"]
-        tick.eth_mid, tick.eth_spread = last_binance["ETH"]
-        tick.sol_mid, tick.sol_spread = last_binance["SOL"]
+        # Binance BTC (forward-fill)
+        if ts in binance_by_sec:
+            last_btc_mid, last_btc_spread = binance_by_sec[ts]
+        tick.btc_mid = last_btc_mid
+        tick.btc_spread = last_btc_spread
 
-        # Forward-fill the Chainlink oracle price for each asset.
-        for asset in ("BTC", "ETH", "SOL"):
-            asset_dict = chainlink_by_sec[asset]
-            if ts in asset_dict:
-                last_chainlink_by_asset[asset] = asset_dict[ts]
-        tick.chainlink_btc = last_chainlink_by_asset["BTC"]
-        tick.chainlink_eth = last_chainlink_by_asset["ETH"]
-        tick.chainlink_sol = last_chainlink_by_asset["SOL"]
+        # Chainlink (forward-fill)
+        if ts in chainlink_by_sec:
+            last_chainlink = chainlink_by_sec[ts]
+        tick.chainlink_btc = last_chainlink
 
         timeline.append(tick)
 

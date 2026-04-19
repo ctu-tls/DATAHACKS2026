@@ -1,0 +1,1 @@
+{'max_open_markets': 12, 'base_order_size': 145.0, 'min_cash_buffer': 2750.0, 'momentum_window_sec': 30, 'vol_window_sec': 540, 'min_momentum_base': 0.00035, 'max_book_spread': 0.02, 'take_profit': 0.14, 'stop_loss': 0.08}

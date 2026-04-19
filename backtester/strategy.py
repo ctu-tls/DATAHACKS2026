@@ -186,12 +186,6 @@ class MarketState:
     # Binance reference prices per asset (top-of-book mid and spread).
     btc_mid: float = 0.0
     btc_spread: float = 0.0
-    eth_mid: float = 0.0
-    eth_spread: float = 0.0
-    sol_mid: float = 0.0
-    sol_spread: float = 0.0
-
-    # Chainlink on-chain oracle prices per asset (used for settlement).
     chainlink_btc: float = 0.0
     chainlink_eth: float = 0.0
     chainlink_sol: float = 0.0
